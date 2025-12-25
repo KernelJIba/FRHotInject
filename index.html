@@ -1,0 +1,965 @@
+<html lang="zh-CN">
+ <head> 
+  <meta charset="UTF-8"> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> 
+  <title>PUBGM FR热注入 控制中心</title> 
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Consolas', 'Microsoft Yahei', sans-serif;
+    }
+    body {
+      background: #0a0a14;
+      color: #00ff9c;
+      overflow: hidden;
+      height: 100vh;
+      position: relative;
+    }
+    /* 雪花特效容器 */
+    #snow-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    /* 入场平移动画 */
+    @keyframes slideIn {
+      0% { transform: translateX(-100%); opacity: 0; }
+      80% { transform: translateX(10px); opacity: 0.9; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+    .container {
+      width: 100%;
+      height: 100vh;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 10;
+      animation: slideIn 1.2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    }
+    header {
+      border-bottom: 1px solid #1e3f5a;
+      padding-bottom: 12px;
+      margin-bottom: 15px;
+    }
+    .title {
+      font-size: 22px;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+      text-shadow: 0 0 6px #00ff9c;
+      text-align: center;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #50e3c2;
+      opacity: 0.7;
+      text-align: center;
+    }
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 8px;
+      background: rgba(0, 30, 60, 0.4);
+      border: 1px solid #1e3f5a;
+      border-radius: 6px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .status-item {
+      font-size: 11px;
+      flex: 1;
+      text-align: center;
+    }
+    .status-label {
+      color: #a0aec0;
+    }
+    .status-value {
+      color: #00ff9c;
+    }
+    /* 标签栏 - 横向滚动 */
+    .tabs-container {
+      overflow-x: auto;
+      margin-bottom: 15px;
+      padding-bottom: 4px;
+    }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      width: max-content;
+    }
+    .tab {
+      padding: 10px 20px;
+      background: rgba(0, 30, 60, 0.3);
+      border: 1px solid #1e3f5a;
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab.active {
+      background: #112240;
+      border-color: #00ff9c;
+      color: #00ff9c;
+    }
+    .tab:hover:not(.active) {
+      background: rgba(0, 60, 100, 0.3);
+    }
+    /* 内容面板 - 滚动适配 */
+    .panels-container {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .panel {
+      display: none;
+      padding: 18px;
+      background: rgba(0, 20, 40, 0.6);
+      border: 1px solid #1e3f5a;
+      border-radius: 0 6px 6px 6px;
+      margin-bottom: 15px;
+      backdrop-filter: blur(4px);
+      transition: all 0.3s ease;
+    }
+    .panel.active {
+      display: block;
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .panel:not(.active) {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    .section {
+      margin-bottom: 22px;
+    }
+    .section-title {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #50e3c2;
+      border-bottom: 1px solid #1e3f5a;
+      padding-bottom: 6px;
+    }
+    .option-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+    .option-label {
+      flex: 1;
+      font-size: 14px;
+      color: #a0aec0;
+    }
+    /* 开关 - 增大触摸区域 */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 52px;
+      height: 28px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #334155;
+      transition: .4s;
+      border-radius: 28px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #a0aec0;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #00ff9c;
+    }
+    input:checked + .slider:before {
+      transform: translateX(24px);
+      background-color: #0a0a14;
+    }
+    /* 滑块 - 增大尺寸 */
+    .range-slider {
+      flex: 1;
+      height: 8px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #334155;
+      outline: none;
+      border-radius: 4px;
+    }
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #00ff9c;
+      cursor: pointer;
+      box-shadow: 0 0 10px #00ff9c;
+    }
+    /* 按钮 - 增大触摸区域 */
+    .btn {
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: 1px solid #00ff9c;
+      background: rgba(0, 255, 156, 0.1);
+      color: #00ff9c;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      background: rgba(0, 255, 156, 0.2);
+      box-shadow: 0 0 10px rgba(0, 255, 156, 0.4);
+      transform: translateY(-2px);
+    }
+    .btn-danger {
+      border-color: #ff4d4f;
+      color: #ff4d4f;
+      background: rgba(255, 77, 79, 0.1);
+    }
+    .btn-danger:hover {
+      background: rgba(255, 77, 79, 0.2);
+      box-shadow: 0 0 10px rgba(255, 77, 79, 0.4);
+    }
+    /* 下拉框 - 适配手机 */
+    select.btn {
+      background: #112240;
+      border-color: #334155;
+      color: #a0aec0;
+      padding: 10px 12px;
+    }
+    /* 颜色选择器 - 增大尺寸 */
+    input[type="color"] {
+      width: 40px;
+      height: 32px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: transparent;
+    }
+    /* 日志框 - 适配手机高度 */
+    .log-box {
+      width: 100%;
+      height: 150px;
+      background: rgba(0, 10, 20, 0.8);
+      border: 1px solid #1e3f5a;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 11px;
+      color: #50e3c2;
+      font-family: 'Consolas', monospace;
+      overflow-y: auto;
+      white-space: pre-line;
+    }
+    /* 新增：快捷键显示 */
+    .hotkey {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(160, 174, 192, 0.2);
+      color: #a0aec0;
+      margin-left: auto;
+    }
+    /* 新增：数值输入框 */
+    .num-input {
+      width: 60px;
+      padding: 8px;
+      background: rgba(0, 10, 20, 0.8);
+      border: 1px solid #1e3f5a;
+      border-radius: 4px;
+      color: #00ff9c;
+      text-align: center;
+      font-size: 14px;
+    }
+    .fake-progress {
+      height: 6px;
+      background: #334155;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .fake-progress-bar {
+      height: 100%;
+      width: 100%;
+      background: #00ff9c;
+      animation: progressPulse 3s infinite alternate;
+    }
+    @keyframes progressPulse {
+      0% { width: 78%; }
+      50% { width: 85%; }
+      100% { width: 78%; }
+    }
+    .tag {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(0, 255, 156, 0.2);
+      color: #00ff9c;
+      margin-left: 8px;
+    }
+    .tag.warning {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+    }
+    .tag.danger {
+      background: rgba(255, 77, 79, 0.2);
+      color: #ff4d4f;
+    }
+    /* 隐藏滚动条但保留功能 */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e3f5a;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    /* 雪花样式 */
+    .snowflake {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: snowfall linear infinite;
+    }
+    @keyframes snowfall {
+      0% {
+        transform: translateY(-10px) translateX(0);
+        opacity: 0;
+      }
+      10% {
+        opacity: 0.8;
+      }
+      90% {
+        opacity: 0.7;
+      }
+      100% {
+        transform: translateY(100vh) translateX(15px);
+        opacity: 0;
+      }
+    }
+  </style> 
+  <script src="js/jq.js"></script> 
+ </head> 
+ <body id="v1"> 
+  <!-- 雪花特效容器 --> 
+  <div id="v2" class="container"> 
+   <header id="v3"> 
+    <div id="v4" class="title">
+      FR Hot Inject 
+    </div> 
+    <div id="v5" class="subtitle">
+      全新一代热注入技术 
+    </div> 
+   </header> 
+   <div id="v6" class="status-bar"> 
+    <div id="v7" class="status-item"> 
+     <span id="v8" class="status-label">状态: </span> 
+     <span class="status-value" id="inject-status">已注入</span> 
+    </div> 
+    <div id="v9" class="status-item"> 
+     <span id="v10" class="status-label">版本: </span> 
+     <span id="v11" class="status-value">v26.1-B.1</span> 
+    </div> 
+    <div id="v12" class="status-item"> 
+     <span id="v13" class="status-label">Pid: </span> 
+     <span class="status-value" id="player-name">10330</span> 
+    </div> 
+    <div id="v14" class="status-item"> 
+     <span id="v15" class="status-label">延迟: </span> 
+     <span class="status-value" id="ping">33ms</span> 
+    </div> 
+   </div> 
+   <div id="v16" class="tabs-container"> 
+    <div id="v17" class="tabs"> 
+     <div id="v18" class="tab active" data-panel="main">
+       主页 
+     </div> 
+     <div id="v19" class="tab" data-panel="visual">
+       绘制 
+     </div> 
+     <div id="v20" class="tab" data-panel="aim">
+       自瞄 
+     </div> 
+     <div id="v21" class="tab" data-panel="combat">
+       功能 
+     </div> 
+     <div id="v22" class="tab" data-panel="move">
+       加速 
+     </div> 
+     <div id="v23" class="tab" data-panel="misc">
+       杂项 
+     </div> 
+    </div> 
+   </div> 
+   <div id="v24" class="panels-container"> 
+    <!-- 主功能面板 --> 
+    <div class="panel active" id="main"> 
+     <div id="v25" class="section"> 
+      <div id="v26" class="section-title">
+        全局控制 
+      </div> 
+      <div id="v27" class="option-row"> 
+       <div id="v28" class="option-label">
+         启用热核心 
+       </div> 
+       <label id="v29" class="switch"> <input type="checkbox" id="master-switch" checked=""> <span id="v30" class="slider"></span> </label> 
+      </div> 
+      <div id="v31" class="option-row"> 
+       <div id="v32" class="option-label">
+         战斗中自动激活 
+       </div> 
+       <label id="v33" class="switch"> <input id="v34" type="checkbox" checked=""> <span id="v35" class="slider"></span> </label> 
+      </div> 
+      <div id="v36" class="option-row"> 
+       <div id="v37" class="option-label">
+         强制隐藏进程 
+       </div> 
+       <label id="v38" class="switch"> <input id="v39" type="checkbox"> <span id="v40" class="slider"></span> </label> 
+       <span id="v41" class="hotkey">不推荐开启</span> 
+      </div> 
+      <div id="v42" class="option-row"> 
+       <div id="v43" class="option-label">
+         防检测模式 
+       </div> 
+       <label id="v44" class="switch"> <input id="v45" type="checkbox" checked=""> <span id="v46" class="slider"></span> </label> 
+       <span id="v47" class="tag warning">推荐开启</span> 
+      </div> 
+     </div> 
+     <div id="v48" class="section"> 
+      <div id="v49" class="section-title">
+        注入控制 
+      </div> 
+      <div id="v50" class="option-row" style="justify-content: center; gap: 15px;"> 
+       <button class="btn" id="re-inject">重新注入</button> 
+       <button class="btn btn-danger" id="unload">卸载注入</button> 
+      </div> 
+      <div id="v51" class="fake-progress"> 
+       <div id="v52" class="fake-progress-bar"></div> 
+      </div> 
+      <div id="v53" style="font-size:12px; color:#a0aec0; margin-top:6px; text-align: center;">
+        带宽占用
+       <span id="v54" class="status-value"></span> 
+      </div> 
+     </div> 
+    </div> 
+    <!-- 视觉辅助面板 --> 
+    <div class="panel" id="visual"> 
+     <div id="v55" class="section"> 
+      <div id="v56" class="section-title">
+        ESP 显示 
+      </div> 
+      <div id="v57" class="option-row"> 
+       <div id="v58" class="option-label">
+         敌人方框 
+       </div> 
+       <label id="v59" class="switch"> <input id="v60" type="checkbox" checked=""> <span id="v61" class="slider"></span> </label> 
+      </div> 
+      <div id="v62" class="option-row"> 
+       <div id="v63" class="option-label">
+         敌人骨骼 
+       </div> 
+       <label id="v64" class="switch"> <input id="v65" type="checkbox" checked=""> <span id="v66" class="slider"></span> </label> 
+      </div> 
+      <div id="v67" class="option-row"> 
+       <div id="v68" class="option-label">
+         显示距离/血量 
+       </div> 
+       <label id="v69" class="switch"> <input id="v70" type="checkbox" checked=""> <span id="v71" class="slider"></span> </label> 
+      </div> 
+      <div id="v72" class="option-row"> 
+       <div id="v73" class="option-label">
+         显示载具/物资 
+       </div> 
+       <label id="v74" class="switch"> <input id="v75" type="checkbox" checked=""> <span id="v76" class="slider"></span> </label> 
+      </div> 
+      <div id="v77" class="option-row"> 
+       <div id="v78" class="option-label">
+         绘制投掷物 
+       </div> 
+       <label id="v79" class="switch"> <input id="v80" type="checkbox" checked=""> <span id="v81" class="slider"></span> </label> 
+       <span id="v82" class="hotkey">0x04AF53B</span> 
+      </div> 
+      <div id="v83" class="option-row"> 
+       <div id="v84" class="option-label">
+         敌后预计 
+       </div> 
+       <label id="v85" class="switch"> <input id="v86" type="checkbox"> <span id="v87" class="slider"></span> </label> 
+       <span id="v88" class="hotkey">0x33B08F6</span> 
+      </div> 
+     </div> 
+     <div id="v89" class="section"> 
+      <div id="v90" class="section-title">
+        颜色/样式 
+      </div> 
+      <div id="v91" class="option-row"> 
+       <div id="v92" class="option-label">
+         敌人颜色 
+       </div> 
+       <input id="v93" type="color" value="#ff4d4f"> 
+      </div> 
+      <div id="v94" class="option-row"> 
+       <div id="v95" class="option-label">
+         友方颜色 
+       </div> 
+       <input id="v96" type="color" value="#00ff9c"> 
+      </div> 
+      <div id="v97" class="option-row"> 
+       <div id="v98" class="option-label">
+         物资颜色 
+       </div> 
+       <input id="v99" type="color" value="#ffc107"> 
+      </div> 
+      <div id="v100" class="option-row"> 
+       <div id="v101" class="option-label">
+         方框粗细 
+       </div> 
+       <input type="range" min="1" max="5" value="2" class="range-slider" id="box-thickness"> 
+       <span class="status-value" id="box-thickness-val">2</span> 
+      </div> 
+     </div> 
+    </div> 
+    <!-- 自瞄面板 --> 
+    <div class="panel" id="aim"> 
+     <div id="v102" class="section"> 
+      <div id="v103" class="section-title">
+        自瞄控制 
+      </div> 
+      <div id="v104" class="option-row"> 
+       <div id="v105" class="option-label">
+         启用自瞄 
+       </div> 
+       <label id="v106" class="switch"> <input id="v107" type="checkbox" checked=""> <span id="v108" class="slider"></span> </label> 
+       <span id="v109" class="hotkey">0x2N6FA32</span> 
+      </div> 
+      <div id="v110" class="option-row"> 
+       <div id="v111" class="option-label">
+         仅开镜自瞄 
+       </div> 
+       <label id="v112" class="switch"> <input id="v113" type="checkbox" checked=""> <span id="v114" class="slider"></span> </label> 
+      </div> 
+      <div id="v115" class="option-row"> 
+       <div id="v116" class="option-label">
+         锁定部位 
+       </div> 
+       <select id="v117" class="btn"> <option id="v118">随机</option> <option id="v119">胸部</option> <option id="v120">头部</option> </select> 
+      </div> 
+      <div id="v121" class="option-row"> 
+       <div id="v122" class="option-label">
+         忽略倒地 
+       </div> 
+       <label id="v123" class="switch"> <input id="v124" type="checkbox" checked=""> <span id="v125" class="slider"></span> </label> 
+      </div> 
+     </div> 
+     <div id="v126" class="section"> 
+      <div id="v127" class="section-title">
+        参数调节 
+      </div> 
+      <div id="v128" class="option-row"> 
+       <div id="v129" class="option-label">
+         自瞄范围 (米) 
+       </div> 
+       <input type="range" min="50" max="800" value="300" class="range-slider" id="aim-range"> 
+       <span class="status-value" id="aim-range-val">300</span> 
+      </div> 
+      <div id="v130" class="option-row"> 
+       <div id="v131" class="option-label">
+         平滑系数 
+       </div> 
+       <input type="range" min="1" max="30" value="12" class="range-slider" id="smoothness"> 
+       <span class="status-value" id="smoothness-val">12</span> 
+      </div> 
+      <div id="v132" class="option-row"> 
+       <div id="v133" class="option-label">
+         瞄准速度 
+       </div> 
+       <input type="range" min="1" max="20" value="8" class="range-slider" id="aim-speed"> 
+       <span class="status-value" id="aim-speed-val">8</span> 
+      </div> 
+      <div id="v134" class="option-row"> 
+       <div id="v135" class="option-label">
+         自动开火 
+       </div> 
+       <label id="v136" class="switch"> <input id="v137" type="checkbox"> <span id="v138" class="slider"></span> </label> 
+       <span id="v139" class="tag">慎用</span> 
+      </div> 
+     </div> 
+    </div> 
+    <!-- 战斗增强面板 --> 
+    <div class="panel" id="combat"> 
+     <div id="v140" class="section"> 
+      <div id="v141" class="section-title">
+        武器增强 
+      </div> 
+      <div id="v142" class="option-row"> 
+       <div id="v143" class="option-label">
+         手持无后 
+       </div> 
+       <label id="v144" class="switch"> <input id="v145" type="checkbox" checked=""> <span id="v146" class="slider"></span> </label> 
+       <span id="v147" class="hotkey">0x6A35F1</span> 
+      </div> 
+      <div id="v148" class="option-row"> 
+       <div id="v149" class="option-label">
+         手持聚点 
+       </div> 
+       <label id="v150" class="switch"> <input id="v151" type="checkbox" checked=""> <span id="v152" class="slider"></span> </label> 
+      </div> 
+      <div id="v153" class="option-row"> 
+       <div id="v154" class="option-label">
+         手持防抖 
+       </div> 
+       <label id="v155" class="switch"> <input id="v156" type="checkbox" checked=""> <span id="v157" class="slider"></span> </label> 
+      </div> 
+      <div id="v158" class="option-row"> 
+       <div id="v159" class="option-label">
+         子弹穿透 
+       </div> 
+       <label id="v160" class="switch"> <input id="v161" type="checkbox" checked=""> <span id="v162" class="slider"></span> </label> 
+       <span id="v163" class="tag warning">娱乐</span> 
+      </div> 
+      <div id="v164" class="option-row"> 
+       <div id="v165" class="option-label">
+         子弹颗秒 
+       </div> 
+       <label id="v166" class="switch"> <input id="v167" type="checkbox"> <span id="v168" class="slider"></span> </label> 
+       <span id="v169" class="tag danger">高风险</span> 
+      </div> 
+     </div> 
+     <div id="v170" class="section"> 
+      <div id="v171" class="section-title">
+        射击辅助 
+      </div> 
+      <div id="v172" class="option-row"> 
+       <div id="v173" class="option-label">
+         加强辅瞄 
+       </div> 
+       <label id="v174" class="switch"> <input id="v175" type="checkbox" checked=""> <span id="v176" class="slider"></span> </label> 
+      </div> 
+      <div id="v177" class="option-row"> 
+       <div id="v178" class="option-label">
+         掩体判断 
+       </div> 
+       <label id="v179" class="switch"> <input id="v180" type="checkbox" checked=""> <span id="v181" class="slider"></span> </label> 
+      </div> 
+      <div id="v182" class="option-row"> 
+       <div id="v183" class="option-label">
+         自定义准星 
+       </div> 
+       <label id="v184" class="switch"> <input id="v185" type="checkbox" checked=""> <span id="v186" class="slider"></span> </label> 
+      </div> 
+      <div id="v187" class="option-row"> 
+       <div id="v188" class="option-label">
+         准星大小 
+       </div> 
+       <input type="range" min="1" max="10" value="3" class="range-slider" id="crosshair-size"> 
+       <span class="status-value" id="crosshair-size-val">3</span> 
+      </div> 
+     </div> 
+    </div> 
+    <!-- 移动功能面板 --> 
+    <div class="panel" id="move"> 
+     <div id="v189" class="section"> 
+      <div id="v190" class="section-title">
+        移动面板 
+      </div> 
+      <div id="v191" class="option-row"> 
+       <div id="v192" class="option-label">
+         飞天穿墙 
+       </div> 
+       <label id="v193" class="switch"> <input id="v194" type="checkbox"> <span id="v195" class="slider"></span> </label> 
+       <span id="v196" class="hotkey">灵魂</span> 
+      </div> 
+      <div id="v197" class="option-row"> 
+       <div id="v198" class="option-label">
+         倒地加速 
+       </div> 
+       <label id="v199" class="switch"> <input id="v200" type="checkbox"> <span id="v201" class="slider"></span> </label> 
+       <span id="v202" class="hotkey">0x34F00A7</span> 
+      </div> 
+      <div id="v203" class="option-row"> 
+       <div id="v204" class="option-label">
+         通用加速 
+       </div> 
+       <label id="v205" class="switch"> <input id="v206" type="checkbox" checked=""> <span id="v207" class="slider"></span> </label> 
+       <span id="v208" class="hotkey">0x62AN32F</span> 
+      </div> 
+      <div id="v209" class="option-row"> 
+       <div id="v210" class="option-label">
+         通用高跳 
+       </div> 
+       <label id="v211" class="switch"> <input id="v212" type="checkbox" checked=""> <span id="v213" class="slider"></span> </label> 
+      </div> 
+      <div id="v214" class="option-row"> 
+       <div id="v215" class="option-label">
+         探头飞天 
+       </div> 
+       <label id="v216" class="switch"> <input id="v217" type="checkbox"> <span id="v218" class="slider"></span> </label> 
+       <span id="v219" class="tag danger">高风险</span> 
+      </div> 
+     </div> 
+     <div id="v220" class="section"> 
+      <div id="v221" class="section-title">
+        移动参数 
+      </div> 
+      <div id="v222" class="option-row"> 
+       <div id="v223" class="option-label">
+         移动速度倍率 
+       </div> 
+       <input type="range" min="1" max="10" value="3" class="range-slider" id="speed-multiplier"> 
+       <span class="status-value" id="speed-multiplier-val">3x</span> 
+      </div> 
+      <div id="v224" class="option-row"> 
+       <div id="v225" class="option-label">
+         跳跃高度 (厘米) 
+       </div> 
+       <input type="number" value="300" class="num-input" id="fly-height"> 
+      </div> 
+      <div id="v226" class="option-row"> 
+       <div id="v227" class="option-label">
+         游泳速度增强 
+       </div> 
+       <label id="v228" class="switch"> <input id="v229" type="checkbox" checked=""> <span id="v230" class="slider"></span> </label> 
+      </div> 
+     </div> 
+    </div> 
+    <!-- 杂项面板 --> 
+    <div class="panel" id="misc"> 
+     <div id="v231" class="section"> 
+      <div id="v232" class="section-title">
+        辅助功能 
+      </div> 
+      <div id="v233" class="option-row"> 
+       <div id="v234" class="option-label">
+         自动舔包 
+       </div> 
+       <label id="v235" class="switch"> <input id="v236" type="checkbox" checked=""> <span id="v237" class="slider"></span> </label> 
+       <span id="v238" class="hotkey">0x560A34F1</span> 
+      </div> 
+      <div id="v239" class="option-row"> 
+       <div id="v240" class="option-label">
+         自动切枪 
+       </div> 
+       <label id="v241" class="switch"> <input id="v242" type="checkbox" checked=""> <span id="v243" class="slider"></span> </label> 
+      </div> 
+      <div id="v244" class="option-row"> 
+       <div id="v245" class="option-label">
+         微加速 
+       </div> 
+       <label id="v246" class="switch"> <input id="v247" type="checkbox" checked=""> <span id="v248" class="slider"></span> </label> 
+      </div> 
+      <div id="v249" class="option-row"> 
+       <div id="v250" class="option-label">
+         高跳防摔 
+       </div> 
+       <label id="v251" class="switch"> <input id="v252" type="checkbox" checked=""> <span id="v253" class="slider"></span> </label> 
+      </div> 
+      <div id="v254" class="option-row"> 
+       <div id="v255" class="option-label">
+         本地美化 
+       </div> 
+       <label id="v256" class="switch"> <input id="v257" type="checkbox"> <span id="v258" class="slider"></span> </label> 
+      </div> 
+     </div> 
+     <div id="v259" class="section"> 
+      <div id="v260" class="section-title">
+        日志输出 
+      </div> 
+      <div class="log-box" id="log-box">
+        [10000] 初始化网络核心... 
+        [10001] 扫描游戏进程: com.tencent.ig 
+        [10002] 找到进程 
+        [10003] 分配内存成功 
+        [10004] 写入代码段成功 
+        [10005] 注入完成，状态: 成功 
+        [10006] 加载配置: default.json 
+        [10007] 应用 ESP/自瞄设置 
+        [10008] 防检测模块启动 
+        [10009] 热注入已就绪 
+      </div> 
+     </div> 
+     <div id="v261" class="section" style="margin-bottom: 0;"> 
+      <div id="v262" class="option-row" style="justify-content: center;"> 
+       <button class="btn" id="save-config">保存配置</button> 
+       <button class="btn" id="load-config">加载配置</button> 
+      </div> 
+     </div> 
+    </div> 
+   </div> 
+  </div> 
+  <script>
+    // 仅 UI 交互，无实际功能
+    const tabs = document.querySelectorAll('.tab');
+    const panels = document.querySelectorAll('.panel');
+    // 标签切换
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.panel;
+        tabs.forEach(t => t.classList.remove('active'));
+        panels.forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(target).classList.add('active');
+      });
+    });
+    // 滑块实时显示值
+    const sliders = [
+      { id: 'box-thickness', valId: 'box-thickness-val' },
+      { id: 'aim-range', valId: 'aim-range-val' },
+      { id: 'smoothness', valId: 'smoothness-val' },
+      { id: 'aim-speed', valId: 'aim-speed-val' },
+      { id: 'crosshair-size', valId: 'crosshair-size-val' },
+      { id: 'speed-multiplier', valId: 'speed-multiplier-val', suffix: 'x' }
+    ];
+    sliders.forEach(({ id, valId, suffix = '' }) => {
+      const slider = document.getElementById(id);
+      const valEl = document.getElementById(valId);
+      slider.addEventListener('input', () => {
+        valEl.textContent = slider.value + suffix;
+      });
+    });
+    // 日志自动追加
+    const logBox = document.getElementById('log-box');
+    const logs = [
+      '[new] 已热注入游戏',
+      '[+] 远程控制模块开启',
+      '[10010] 自瞄模块已就绪 (范围: 300m)',
+      '[10011] 功能模块启动',
+      '[10012] 内核隐藏开启',
+      '[10013] 外挂接口就绪',
+      '[10014] 快速移动功能激活 (3x)',
+      '[10015] 自动模块已就绪',
+      '[10016] 安全值更新'
+    ];
+    let logIndex = 0;
+    setInterval(() => {
+      if (logIndex < logs.length) {
+        logBox.textContent += '\n' + logs[logIndex];
+        logBox.scrollTop = logBox.scrollHeight;
+        logIndex++;
+      }
+    }, 1500);
+    // 重新注入/卸载按钮
+    const reInjectBtn = document.getElementById('re-inject');
+    const unloadBtn = document.getElementById('unload');
+    const injectStatus = document.getElementById('inject-status');
+    const masterSwitch = document.getElementById('master-switch');
+    reInjectBtn.addEventListener('click', () => {
+      injectStatus.textContent = '注入中...';
+      injectStatus.style.color = '#ffc107';
+      setTimeout(() => {
+        injectStatus.textContent = '已注入';
+        injectStatus.style.color = '#00ff9c';
+        masterSwitch.checked = true;
+        logBox.textContent += '\n[YES] 重新注入成功';
+        logBox.scrollTop = logBox.scrollHeight;
+      }, 1200);
+    });
+    unloadBtn.addEventListener('click', () => {
+      injectStatus.textContent = '未注入';
+      injectStatus.style.color = '#ff4d4f';
+      masterSwitch.checked = false;
+      logBox.textContent += '\n[NO] 外挂已卸载';
+      logBox.scrollTop = logBox.scrollHeight;
+    });
+    // 保存/加载配置按钮
+    document.getElementById('save-config').addEventListener('click', () => {
+      logBox.textContent += '\n[Cof] 配置保存成功: config_1.json';
+      logBox.scrollTop = logBox.scrollHeight;
+    });
+    document.getElementById('load-config').addEventListener('click', () => {
+      logBox.textContent += '\n[Cof] 加载配置成功: config_1.json';
+      logBox.scrollTop = logBox.scrollHeight;
+    });
+  
+    // 随机玩家名
+    const names = ['10330', '10436', '10946', '10833', '10007', '12139', '11366','10863','13772','13408','11964','10046','11553'];
+    document.getElementById('player-name').textContent = names[Math.floor(Math.random() * names.length)];
+    // 飞天高度输入框同步
+    const flyHeightInput = document.getElementById('fly-height');
+    flyHeightInput.addEventListener('input', () => {
+      if (flyHeightInput.value < 10) flyHeightInput.value = 10;
+      if (flyHeightInput.value > 500) flyHeightInput.value = 500;
+    });
+    // 10-60ms随机延迟更新
+    const pingEl = document.getElementById('ping');
+    function updatePing() {
+      const ping = Math.floor(Math.random() * 51) + 10;
+      pingEl.textContent = `${ping}ms`;
+    }
+    updatePing();
+    setInterval(updatePing, 800);
+    // 雪花飘落效果实现
+    function createSnowflakes() {
+      const container = document.getElementById('snow-container');
+      const snowCount = 20; // 雪花数量，灵动不密集
+      const maxSize = 5;
+      const minSize = 1;
+      const maxDuration = 8;
+      const minDuration = 5;
+
+      for (let i = 0; i < snowCount; i++) {
+        const snowflake = document.createElement('div');
+        snowflake.classList.add('snowflake');
+        
+        // 随机雪花大小
+        const size = Math.random() * (maxSize - minSize) + minSize;
+        snowflake.style.width = `${size}px`;
+        snowflake.style.height = `${size}px`;
+        
+        // 随机初始位置（左侧区域）
+        snowflake.style.left = `${Math.random() * 580}%`;
+        snowflake.style.top = `${Math.random() * -50}px`;
+        
+        // 随机下落时长（灵动变速）
+        const duration = Math.random() * (maxDuration - minDuration) + minDuration;
+        snowflake.style.animationDuration = `${duration}s`;
+        
+        // 随机透明度
+        snowflake.style.opacity = Math.random() * 0.5 + 0.3;
+        
+        container.appendChild(snowflake);
+        
+        // 雪花落地后重置位置
+        setTimeout(() => {
+          snowflake.style.left = `${Math.random() * 30}%`;
+          snowflake.style.top = `${Math.random() * -50}px`;
+        }, duration * 1000);
+      }
+    }
+
+    // 初始化雪花效果
+    createSnowflakes();
+    // 定时补充雪花，保持灵动效果
+    setInterval(createSnowflakes, 3000);
+  </script> 
+  <p id="v263">段落263</p> 
+
+ </body>
+  </html>
